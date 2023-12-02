@@ -153,9 +153,6 @@ class SmartThermostatApp(QWidget):
                 self.manual_radio.setChecked(True)
             self.log(f"Настройки применены. Выбран режим: {self.mode}")
 
-
-
-
     def log(self, message):
         """Метод для добавления логов"""
         self.log_output.appendPlainText(message)
@@ -182,7 +179,6 @@ class SmartThermostatApp(QWidget):
 
         self.timer_logs.start(float(self.data_generation_time_edit.text().split()[0])*1000)
 
-
     def set_mode(self, mode):
         """Функция, блокирующая изменение полей в зависимости от выбранного режима"""
         self.mode = mode
@@ -197,47 +193,46 @@ class SmartThermostatApp(QWidget):
 
         # Условная логика работы автоматического режима
         if self.automatic_radio.isChecked():
-            if self.desired_temperature < self.current_temperature:
+            if float(self.desired_temperature) < float(self.current_temperature):
                 self.current_power_conditioner_temperature = 60
             else:
                 self.current_power_conditioner_temperature = 0
 
-            if self.desired_humidity < self.current_humidity:
+            if float(self.desired_humidity) < float(self.current_humidity):
                 self.current_power_conditioner_humidity = 60
             else:
                 self.current_power_conditioner_humidity = 0
-
 
         temperature_increment = 0.1 # Если кондиционер выключен
         humidity_increment = 1 # Если кондиционер выключен
 
         # Условные формулы, описывающие поведение температуры и влажности от заданной мощности кондиционера.
-        temperature_increment = temperature_increment - 0.002 * self.current_power_conditioner_temperature
-        humidity_increment = humidity_increment - 0.02 * self.current_power_conditioner_humidity
+        temperature_increment = temperature_increment - 0.002 * float(self.current_power_conditioner_temperature)
+        humidity_increment = humidity_increment - 0.02 * float(self.current_power_conditioner_humidity)
 
-        if 15 < self.current_temperature + temperature_increment < 40:
+        if 15 < float(self.current_temperature) + temperature_increment < 40:
             self.current_temperature += temperature_increment
 
-        if 0 < self.current_humidity + humidity_increment < 100:
+        if 0 < float(self.current_humidity) + humidity_increment < 100:
             self.current_humidity += humidity_increment
 
         self.update_values()
 
     def update_values(self):
         """Функция, которая обновляет отображаемые значения в оконном приложении"""
-        self.temperature_current_value.setText(f'{round(self.current_temperature, 1)}')
-        self.humidity_current_value.setText(f'{round(self.current_humidity, 1)}')
-        self.current_power_conditioner_temperature_value.setText(f'{round(self.current_power_conditioner_temperature)}')
-        self.current_power_conditioner_humidity_value.setText(f'{round(self.current_power_conditioner_humidity)}')
+        self.temperature_current_value.setText(f'{round(float(self.current_temperature), 1)}')
+        self.humidity_current_value.setText(f'{round(float(self.current_humidity), 1)}')
+        self.current_power_conditioner_temperature_value.setText(f'{round(float(self.current_power_conditioner_temperature))}')
+        self.current_power_conditioner_humidity_value.setText(f'{round(float(self.current_power_conditioner_humidity))}')
 
         if self.automatic_radio.isChecked():
-            self.desired_power_conditioner_temperature_edit.setText(f'{round(self.current_power_conditioner_temperature)}')
-            self.desired_power_conditioner_humidity_edit.setText(f'{round(self.current_power_conditioner_humidity)}')
+            self.desired_power_conditioner_temperature_edit.setText(f'{round(float(self.current_power_conditioner_temperature))}')
+            self.desired_power_conditioner_humidity_edit.setText(f'{round(float(self.current_power_conditioner_humidity))}')
 
     def update_logs(self):
         """Функция, которая выводит логи раз в заданное время"""
-        log_message = f'[{datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")}] Режим работы кондиционера: {self.mode}. Текущая температура: {round(self.current_temperature, 1)}. Текущая влажность: {round(self.current_humidity, 1)}. Текущая мощность кондиционера (Температура): {self.current_power_conditioner_temperature}. Текущая мощность кондиционера (Влажность): {self.current_power_conditioner_humidity}.'
-        self.log(log_message)
+        log_message = f'[{datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")}]<new_line>Режим работы кондиционера: {self.mode}.<new_line>Текущая температура: {round(self.current_temperature, 1)}.<new_line>Текущая влажность: {round(self.current_humidity, 1)}.<new_line>Текущая мощность кондиционера (Температура): {self.current_power_conditioner_temperature}.<new_line>Текущая мощность кондиционера (Влажность): {self.current_power_conditioner_humidity}.'
+        self.log(log_message.replace('<new_line>', ' '))
         self.mqtt_client.publish(self.mqtt_topic, json.dumps({"log": log_message}))
 
 
