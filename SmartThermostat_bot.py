@@ -28,7 +28,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Фунция, которая показывает доступные комманды, если ввести /help"""
     text = ("/change_mode [Manual/Automatic] - сменить режим на Ручной/Автоматическиий\n"
-            "/set [setting] [float] - изменить настройки. Доступны настройки: Температура, Влажность Мощность кондиционера(Температура), Мощность кондиционера(Влажность)\n"
+            "/set [setting] [float] - изменить настройки. Доступны настройки: Температура, Влажность, Мощность_кондиционера(Температура), Мощность_кондиционера(Влажность)\n"
             "/get_statistics - получить данные с термостата")
     await update.message.reply_text(text)
 
