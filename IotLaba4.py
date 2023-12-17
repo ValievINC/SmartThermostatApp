@@ -10,14 +10,21 @@ class SmartThermostatApp(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.mqtt_broker = "localhost"
-        self.mqtt_port = 1883
-        self.mqtt_topic = "smart_thermostat"
+        # RIGHTECH
+        self.topic_subscribe = "base/relay/commands"
+        self.topic_temperature = "base/state/temperature"
+        self.topic_humidity = "base/state/humidity"
+        self.topic_desired_temperature = "base/state/desired_temperature"
+        self.topic_desired_humidity = "base/state/desired_humidity"
+        self.topic_mode = "base/state/mode"
+        self.topic_conditioner_temperature = "base/state/conditioner_temperature"
+        self.topic_conditioner_humidity = "base/state/conditioner_humidity"
 
-        self.mqtt_client = mqtt.Client()
+        self.client = None
 
         self.connect_mqtt()
 
+        # MODEL
         self.current_temperature = 28.0
         self.temperature_current_value = QLabel(str(self.current_temperature))
         self.desired_temperature = 22.0
@@ -54,10 +61,20 @@ class SmartThermostatApp(QWidget):
         self.init_ui()
 
     def connect_mqtt(self):
-        self.mqtt_client.on_connect = self.on_connect
-        self.mqtt_client.on_message = self.on_message
-        self.mqtt_client.connect(self.mqtt_broker, self.mqtt_port, 60)
-        self.mqtt_client.loop_start()
+        wifi_ssid = "<wifi-ssid>"
+        wifi_password = "<wifi-password>"
+        mqtt_broker = "dev.rightech.io"
+        mqtt_port = 1883
+        mqtt_client_id = "mqtt-gennadypetrenko228-ue3dyi"
+
+        self.client = mqtt.Client(client_id=mqtt_client_id)
+        self.client.username_pw_set(wifi_ssid, wifi_password)
+        self.client.on_connect = self.on_connect
+        self.client.on_message = self.on_message
+
+        self.client.connect(mqtt_broker, mqtt_port, 60)
+
+        self.client.loop_start()
 
     def init_ui(self):
         """Функция, необходимая для отрисовки оконного приложения на моменте инициализации"""
@@ -122,8 +139,7 @@ class SmartThermostatApp(QWidget):
         self.show()
 
     def on_connect(self, client, userdata, flags, rc):
-        print(f"Connected with result code {rc}")
-        self.mqtt_client.subscribe(self.mqtt_topic)
+        self.client.subscribe(self.topic_subscribe)
 
     def on_message(self, client, userdata, msg):
         payload = json.loads(msg.payload)
@@ -148,11 +164,12 @@ class SmartThermostatApp(QWidget):
             self.desired_power_conditioner_humidity_edit.setText(str(self.current_power_conditioner_humidity))
             self.log(f"Настройки применены. Желаемая мощность кондиционера (Влажность): {self.current_power_conditioner_humidity}")
         if "mode" in payload:
-            self.mode = payload["mode"]
-            if self.mode == "Automatic":
-                self.automatic_radio.setChecked(True)
-            elif self.mode == "Manual":
+            if self.automatic_radio.isChecked():
+                self.mode = "Manual"
                 self.manual_radio.setChecked(True)
+            else:
+                self.mode = "Automatic"
+                self.automatic_radio.setChecked(True)
             self.log(f"Настройки применены. Выбран режим: {self.mode}")
 
     def log(self, message):
@@ -192,7 +209,6 @@ class SmartThermostatApp(QWidget):
 
     def update_conditions(self):
         """Функция, которая задает неизменяемые значения на основе заданных изменяемых"""
-
         # Условная логика работы автоматического режима
         if self.automatic_radio.isChecked():
             if float(self.desired_temperature) < float(self.current_temperature):
@@ -212,10 +228,10 @@ class SmartThermostatApp(QWidget):
         temperature_increment = temperature_increment - 0.002 * float(self.current_power_conditioner_temperature)
         humidity_increment = humidity_increment - 0.02 * float(self.current_power_conditioner_humidity)
 
-        if 15 < float(self.current_temperature) + temperature_increment < 40:
+        if 15 <= float(self.current_temperature) + temperature_increment <= 40:
             self.current_temperature += temperature_increment
 
-        if 0 < float(self.current_humidity) + humidity_increment < 100:
+        if 0 <= float(self.current_humidity) + humidity_increment <= 100:
             self.current_humidity += humidity_increment
 
         self.update_values()
@@ -235,7 +251,13 @@ class SmartThermostatApp(QWidget):
         """Функция, которая выводит логи раз в заданное время"""
         log_message = f'[{datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")}]<new_line>Режим работы кондиционера: {self.mode}.<new_line>Текущая температура: {round(self.current_temperature, 1)}.<new_line>Текущая влажность: {round(self.current_humidity, 1)}.<new_line>Текущая мощность кондиционера (Температура): {self.current_power_conditioner_temperature}.<new_line>Текущая мощность кондиционера (Влажность): {self.current_power_conditioner_humidity}.'
         self.log(log_message.replace('<new_line>', ' '))
-        self.mqtt_client.publish(self.mqtt_topic, json.dumps({"log": log_message}))
+        self.client.publish(self.topic_temperature, round(self.current_temperature, 2))
+        self.client.publish(self.topic_humidity, round(self.current_humidity, 2))
+        self.client.publish(self.topic_desired_temperature, self.desired_temperature)
+        self.client.publish(self.topic_desired_humidity, self.desired_humidity)
+        self.client.publish(self.topic_mode, self.automatic_radio.isChecked())
+        self.client.publish(self.topic_conditioner_temperature, self.current_power_conditioner_temperature)
+        self.client.publish(self.topic_conditioner_humidity, self.current_power_conditioner_humidity)
 
 
 if __name__ == '__main__':
